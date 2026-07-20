@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+import httpx
 from dotenv import load_dotenv
-from openai import OpenAI
 
 load_dotenv()
 
@@ -22,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+USE_MOCK = True  # Set to False when you have OpenAI API key
 
 AGENTS = {
     "gherkin-converter": {
@@ -264,7 +264,98 @@ async def chat_with_agent(agent_id: str, request: ChatRequest):
     
     messages.append({"role": "user", "content": request.message})
     
+    if USE_MOCK:
+        mock_responses = {
+            "gherkin-converter": """Here's your Gherkin conversion:
+
+```gherkin
+Feature: Fund Transfer
+  As a bank customer
+  I want to transfer funds between accounts
+  So that I can manage my money
+
+  Background:
+    Given user is logged into the banking portal
+    And user has a valid source account
+
+  @smoke @banking @transfer
+  Scenario: Successful fund transfer between own accounts
+    Given the source account has balance of "5000" INR
+    When user initiates transfer of "1000" INR to savings account
+    Then transfer should be completed successfully
+    And source account balance should be "4000" INR
+    And destination account should be credited with "1000" INR
+
+  @negative @banking
+  Scenario: Fund transfer with insufficient balance
+    Given the source account has balance of "500" INR
+    When user initiates transfer of "1000" INR
+    Then transfer should fail with message "Insufficient funds"
+```""",
+            "test-case-writer": """## Test Cases Generated
+
+| TC ID | Title | Priority |
+|-------|-------|----------|
+| TC_001 | Verify successful login with valid credentials | High |
+| TC_002 | Verify login fails with invalid password | High |
+| TC_003 | Verify account lockout after 3 failed attempts | High |
+| TC_004 | Verify password field is masked | Medium |
+
+### TC_001: Verify successful login with valid credentials
+
+**Preconditions:**
+- User has valid banking credentials
+- Application is accessible
+
+**Test Steps:**
+1. Navigate to login page
+2. Enter valid username
+3. Enter valid password
+4. Click Login button
+
+**Expected Result:**
+- User is redirected to dashboard
+- Welcome message displays user name""",
+            "bug-reporter": """## Bug Report
+
+**Bug ID:** BUG-2024-001
+**Title:** Fund transfer fails silently when session expires
+
+**Environment:** UAT | Chrome 120 | Windows 11
+
+**Severity:** High
+**Priority:** P1
+
+**Steps to Reproduce:**
+1. Login to banking portal
+2. Wait for 15 minutes (session timeout)
+3. Initiate fund transfer
+4. Click Submit
+
+**Expected Result:** Error message about session expiry
+
+**Actual Result:** No error shown, transfer appears to complete but money not transferred
+
+**Attachments:** [Screenshot placeholder]""",
+        }
+        
+        default_response = f"""I'm the **{agent['name']}** agent.
+
+I received your message: "{request.message}"
+
+This is a demo response. To get real AI responses:
+1. Get an OpenAI API key from https://platform.openai.com
+2. Add it to backend/.env file
+3. Set USE_MOCK = False in main.py
+
+How can I help you with your QA tasks today?"""
+        
+        response_text = mock_responses.get(agent_id, default_response)
+        return ChatResponse(response=response_text, agent_id=agent_id)
+    
     try:
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,

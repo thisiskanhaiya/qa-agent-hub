@@ -87,12 +87,14 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAgentStore } from '../stores/agents'
+import { useApiKeyStore } from '../stores/apiKey'
 import ChatMessage from '../components/ChatMessage.vue'
 import axios from 'axios'
 
 const route = useRoute()
 const router = useRouter()
 const agentStore = useAgentStore()
+const apiKeyStore = useApiKeyStore()
 
 const userInput = ref('')
 const isLoading = ref(false)
@@ -143,7 +145,8 @@ const sendMessage = async () => {
   try {
     const response = await axios.post(`/api/chat/${route.params.id}`, {
       message: userMessage,
-      history: messages.value.slice(-10)
+      history: messages.value.slice(-10),
+      api_key: apiKeyStore.apiKey || null
     })
 
     agentStore.addMessage(route.params.id, {
