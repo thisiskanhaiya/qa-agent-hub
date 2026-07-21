@@ -3,6 +3,10 @@ import os
 from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import httpx
 
 load_dotenv()
 
@@ -224,20 +228,53 @@ Provide Go/No-Go recommendation with risk summary."""
 }
 
 
-def build_json_response(payload: Dict[str, Any], status: int = 200):
-    return payload, status
+# Pydantic models
+class ChatRequest(BaseModel):
+    message: str
+    history: Optional[List[Dict[str, str]]] = None
+    api_key: Optional[str] = None
 
 
-def handle_chat(agent_id: str, payload: Dict[str, Any]):
+# FastAPI app setup
+app = FastAPI(title="QA Agent Hub API")
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/")
+async def root():
+    return {"message": "QA Agent Hub API", "status": "running"}
+
+
+@app.get("/api/agents")
+async def list_agents():
+    return [{"id": k, "name": v["name"]} for k, v in AGENTS.items()]
+
+
+@app.get("/api/agents/{agent_id}")
+async def get_agent(agent_id: str):
     if agent_id not in AGENTS:
-        return build_json_response({"detail": "Agent not found"}, HTTPStatus.NOT_FOUND)
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return {"id": agent_id, **AGENTS[agent_id]}
+
+
+@app.post("/api/chat/{agent_id}")
+async def chat_with_agent(agent_id: str, request: ChatRequest):
+    if agent_id not in AGENTS:
+        raise HTTPException(status_code=404, detail="Agent not found")
 
     agent = AGENTS[agent_id]
-    api_key = get_openai_api_key(payload.get("api_key"))
-    user_message = payload.get("message", "")
-    history = payload.get("history") or []
-
+    api_key = request.api_key or os.getenv("OPENAI_API_KEY")
+    
     if not api_key:
+        # Return mock response
         mock_responses = {
             "gherkin-converter": """Here's your Gherkin conversion:
 
@@ -314,7 +351,7 @@ Feature: Fund Transfer
         
         default_response = f"""I'm the **{agent['name']}** agent.
 
-I received your message: "{user_message}"
+I received your message: "{request.message}"
 
 This is a demo response. To get real AI responses:
 1. Get an OpenAI API key from https://platform.openai.com
@@ -324,87 +361,57 @@ This is a demo response. To get real AI responses:
 How can I help you with your QA tasks today?"""
 
         response_text = mock_responses.get(agent_id, default_response)
-        return build_json_response({"response": response_text, "agent_id": agent_id})
-
-    return build_json_response({"response": f"Live AI is currently unavailable. Please check your OpenAI key or billing status.", "agent_id": agent_id})
-
-
-class SimpleHandler:
-    def __init__(self):
-        self.allowed_origins = get_allowed_origins()
-
-    def handle(self, environ, start_response):
-        path = environ.get("PATH_INFO", "/")
-        method = environ.get("REQUEST_METHOD", "GET")
-
-        if method == "OPTIONS":
-            status = HTTPStatus.OK
-            headers = [
-                ("Content-Type", "application/json"),
-                ("Access-Control-Allow-Origin", "*"),
-                ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
-                ("Access-Control-Allow-Headers", "Content-Type"),
-            ]
-            start_response(f"{status.value} {status.phrase}", headers)
-            return [b""]
-
-        if path == "/":
-            payload = {"message": "QA Agent Hub API", "status": "running"}
-            return self._respond(payload, start_response)
-
-        if path == "/api/agents":
-            payload = [{"id": k, "name": v["name"]} for k, v in AGENTS.items()]
-            return self._respond(payload, start_response)
-
-        if path.startswith("/api/agents/"):
-            agent_id = path.split("/")[-1]
-            if agent_id in AGENTS:
-                payload = {"id": agent_id, **AGENTS[agent_id]}
-                return self._respond(payload, start_response)
-            return self._respond({"detail": "Agent not found"}, start_response, HTTPStatus.NOT_FOUND)
-
-        if path.startswith("/api/chat/"):
-            agent_id = path.split("/")[-1]
-            try:
-                content_length = int(environ.get("CONTENT_LENGTH", "0"))
-            except ValueError:
-                content_length = 0
-
-            body = environ["wsgi.input"].read(content_length).decode("utf-8") if content_length else "{}"
-            try:
-                payload = json.loads(body) if body else {}
-            except json.JSONDecodeError:
-                payload = {}
-
-            response_payload, status = handle_chat(agent_id, payload)
-            return self._respond(response_payload, start_response, status)
-
-        return self._respond({"detail": "Not found"}, start_response, HTTPStatus.NOT_FOUND)
-
-    def _respond(self, payload: Any, start_response, status: int = HTTPStatus.OK):
-        body = json.dumps(payload).encode("utf-8")
-        headers = [
-            ("Content-Type", "application/json"),
-            ("Content-Length", str(len(body))),
-            ("Access-Control-Allow-Origin", "*"),
-            ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
-            ("Access-Control-Allow-Headers", "Content-Type"),
-        ]
-        start_response(f"{status.value} {status.phrase}", headers)
-        return [body]
-
-
-app = SimpleHandler()
-
-
-def main():
-    from wsgiref.simple_server import make_server
-    port = int(os.getenv("PORT", "8000"))
-    host = "0.0.0.0"
-    server = make_server(host, port, app.handle)
-    print(f"Serving on http://{host}:{port}")
-    server.serve_forever()
+        return {"response": response_text, "agent_id": agent_id}
+    
+    # Call OpenAI API
+    try:
+        messages = []
+        messages.append({"role": "system", "content": agent["system_prompt"]})
+        
+        if request.history:
+            for msg in request.history:
+                messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+        
+        messages.append({"role": "user", "content": request.message})
+        
+        # Use httpx with SSL verification disabled for corporate networks
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": get_openai_model(),
+                    "messages": messages,
+                    "temperature": 0.7,
+                },
+                timeout=60.0,
+            )
+            
+            if response.status_code == 401:
+                raise HTTPException(status_code=401, detail="Invalid API key. Please check your OpenAI API key.")
+            elif response.status_code == 429:
+                raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
+            elif response.status_code == 503:
+                raise HTTPException(status_code=503, detail="OpenAI service temporarily unavailable. Please try again.")
+            elif response.status_code == 504:
+                raise HTTPException(status_code=504, detail="Request timeout. Please try again.")
+            elif response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=f"OpenAI API error: {response.text}")
+            
+            result = response.json()
+            ai_response = result["choices"][0]["message"]["content"]
+            return {"response": ai_response, "agent_id": agent_id}
+            
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=503, detail=f"Connection error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
