@@ -6,10 +6,15 @@ __pycache__/
 venv/
 env/
 
-# Environment files
+# Environment files (secrets)
 .env
 .env.local
 .env.*.local
+
+# Allow these non-secret env files
+!.env.example
+!.env.production
+!.env.development
 
 # Build outputs
 dist/

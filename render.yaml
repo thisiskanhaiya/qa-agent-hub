@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: qa-agent-hub-backend
+    runtime: python
+    buildCommand: cd backend && chmod +x render-build.sh && ./render-build.sh
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: OPENAI_API_KEY
+        sync: false
+    healthCheckPath: /
