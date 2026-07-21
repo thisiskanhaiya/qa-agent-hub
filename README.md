@@ -248,6 +248,43 @@ Phase 3: Backend	FastAPI setup, Agent logic, LLM integration	6 hours
 Phase 4: Integration	Connect frontend-backend, testing	3 hours
 Phase 5: Deployment	Vercel + Render deployment	2 hours
 Phase 6: Polish	Bug fixes, UI improvements	3 hours
+
+8. Optional OpenAI Key Flow and Render Deployment
+8.1 UI behavior
+- The navbar shows either "AI Connected" or "Demo Mode" based on whether a valid OpenAI key is stored.
+- Users can open the key dialog and save a key in the browser. The key is stored in local storage and used for chat requests.
+- If no key is present, the app continues to work in demo mode with built-in responses.
+
+8.2 Backend configuration
+- The backend reads the key from the request body first, then from the environment variable OPENAI_API_KEY.
+- Demo mode is automatic when no key is provided.
+- Configure CORS with the CORS_ORIGINS environment variable for deployed frontend domains.
+
+8.3 Backend deployment on Render
+1. Create a new Render Web Service and connect this repository.
+2. Set the root directory to backend.
+3. Use the build command:
+   pip install -r requirements.txt
+4. Use the start command:
+   uvicorn main:app --host 0.0.0.0 --port $PORT
+5. Add environment variables:
+   - OPENAI_API_KEY (optional)
+   - OPENAI_MODEL=gpt-4o-mini
+   - CORS_ORIGINS=https://your-frontend-domain.onrender.com
+
+8.4 Frontend deployment on Render or Vercel
+1. Create a new Static Site or Vercel project and connect this repository.
+2. Set the root directory to frontend.
+3. Build command:
+   npm install && npm run build
+4. Publish directory:
+   dist
+5. Add environment variable:
+   - VITE_API_BASE_URL=https://your-backend-url.onrender.com
+
+8.5 Local run
+- Backend: cd backend && python main.py
+- Frontend: cd frontend && npm install && VITE_API_TARGET=http://localhost:8000 npm run dev
 Total		~22 hours
 8. Cost Estimate
 Item	Monthly Cost

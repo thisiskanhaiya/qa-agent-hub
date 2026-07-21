@@ -143,21 +143,31 @@ const sendMessage = async () => {
   isLoading.value = true
 
   try {
+    const historyPayload = messages.value
+      .slice(-10)
+      .map(({ role, content }) => ({ role, content }))
+
     const response = await axios.post(`/api/chat/${route.params.id}`, {
       message: userMessage,
-      history: messages.value.slice(-10),
+      history: historyPayload,
       api_key: apiKeyStore.apiKey || null
+    }, {
+      timeout: 30000
     })
 
     agentStore.addMessage(route.params.id, {
       role: 'assistant',
-      content: response.data.response
+      content: response.data?.response || 'No response received from the agent.'
     })
   } catch (error) {
     console.error('Error:', error)
+    const errorMessage = error?.response?.data?.detail
+      ? `The agent request failed: ${error.response.data.detail}`
+      : 'Sorry, I encountered an error. Please try again.'
+
     agentStore.addMessage(route.params.id, {
       role: 'assistant',
-      content: 'Sorry, I encountered an error. Please try again.'
+      content: errorMessage
     })
   } finally {
     isLoading.value = false

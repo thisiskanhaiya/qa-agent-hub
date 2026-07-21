@@ -6,6 +6,29 @@ import os
 import httpx
 from dotenv import load_dotenv
 
+
+def get_allowed_origins() -> List[str]:
+    allowed_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+    cleaned_origins = [origin.strip() for origin in allowed_origins if origin.strip()]
+    return cleaned_origins if cleaned_origins else ["*"]
+
+
+def get_openai_api_key(provided_api_key: Optional[str] = None) -> Optional[str]:
+    candidate = (provided_api_key or "").strip()
+    if candidate:
+        return candidate
+
+    env_key = os.getenv("OPENAI_API_KEY", "").strip()
+    return env_key or None
+
+
+def get_openai_model() -> str:
+    configured_model = os.getenv("OPENAI_MODEL", "").strip()
+    if configured_model:
+        return configured_model
+
+    return "gpt-4.1-mini"
+
 load_dotenv()
 
 app = FastAPI(
@@ -16,13 +39,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-USE_MOCK = True  # Set to False when you have OpenAI API key
 
 AGENTS = {
     "gherkin-converter": {
@@ -225,7 +246,8 @@ class Message(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
-    history: Optional[List[Message]] = []
+    history: Optional[List[Message]] = None
+    api_key: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -254,17 +276,19 @@ async def get_agent(agent_id: str):
 async def chat_with_agent(agent_id: str, request: ChatRequest):
     if agent_id not in AGENTS:
         raise HTTPException(status_code=404, detail="Agent not found")
-    
+
     agent = AGENTS[agent_id]
-    
+    api_key = get_openai_api_key(request.api_key)
+
     messages = [{"role": "system", "content": agent["system_prompt"]}]
-    
-    for msg in request.history[-10:]:
+
+    history = request.history or []
+    for msg in history[-10:]:
         messages.append({"role": msg.role, "content": msg.content})
-    
+
     messages.append({"role": "user", "content": request.message})
-    
-    if USE_MOCK:
+
+    if not api_key:
         mock_responses = {
             "gherkin-converter": """Here's your Gherkin conversion:
 
@@ -345,29 +369,39 @@ I received your message: "{request.message}"
 
 This is a demo response. To get real AI responses:
 1. Get an OpenAI API key from https://platform.openai.com
-2. Add it to backend/.env file
-3. Set USE_MOCK = False in main.py
+2. Paste it in the key dialog in the UI, or set OPENAI_API_KEY in backend/.env
+3. The app will automatically switch to live AI responses
 
 How can I help you with your QA tasks today?"""
-        
+
         response_text = mock_responses.get(agent_id, default_response)
         return ChatResponse(response=response_text, agent_id=agent_id)
-    
+
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        client = OpenAI(api_key=api_key)
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=get_openai_model(),
             messages=messages,
             max_tokens=2000,
             temperature=0.7
         )
-        
+
         assistant_message = response.choices[0].message.content
-        
+
         return ChatResponse(response=assistant_message, agent_id=agent_id)
-    
+
     except Exception as e:
+        error_text = str(e).lower()
+        status_code = getattr(e, "status_code", None)
+
+        if status_code in {401, 403, 429} or "insufficient_quota" in error_text or "quota" in error_text or "api key" in error_text:
+            fallback_message = (
+                "Live AI is currently unavailable because the OpenAI account does not have usable quota or the API key is not accepted. "
+                "The app will continue in demo mode. Please check your OpenAI billing/credits or use a different API key."
+            )
+            return ChatResponse(response=fallback_message, agent_id=agent_id)
+
         raise HTTPException(status_code=500, detail=str(e))
 
 
