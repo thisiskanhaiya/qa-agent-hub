@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional
+import json
 import os
-import httpx
+from http import HTTPStatus
+from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def get_allowed_origins() -> List[str]:
@@ -29,21 +29,6 @@ def get_openai_model() -> str:
 
     return "gpt-4.1-mini"
 
-load_dotenv()
-
-app = FastAPI(
-    title="QA Agent Hub API",
-    description="Backend API for Quality Engineering Dashboard",
-    version="1.0.0"
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_allowed_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 AGENTS = {
     "gherkin-converter": {
@@ -239,54 +224,18 @@ Provide Go/No-Go recommendation with risk summary."""
 }
 
 
-class Message(BaseModel):
-    role: str
-    content: str
+def build_json_response(payload: Dict[str, Any], status: int = 200):
+    return payload, status
 
 
-class ChatRequest(BaseModel):
-    message: str
-    history: Optional[List[Message]] = None
-    api_key: Optional[str] = None
-
-
-class ChatResponse(BaseModel):
-    response: str
-    agent_id: str
-
-
-@app.get("/")
-async def root():
-    return {"message": "QA Agent Hub API", "status": "running"}
-
-
-@app.get("/api/agents")
-async def list_agents():
-    return [{"id": k, "name": v["name"]} for k, v in AGENTS.items()]
-
-
-@app.get("/api/agents/{agent_id}")
-async def get_agent(agent_id: str):
+def handle_chat(agent_id: str, payload: Dict[str, Any]):
     if agent_id not in AGENTS:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    return {"id": agent_id, **AGENTS[agent_id]}
-
-
-@app.post("/api/chat/{agent_id}", response_model=ChatResponse)
-async def chat_with_agent(agent_id: str, request: ChatRequest):
-    if agent_id not in AGENTS:
-        raise HTTPException(status_code=404, detail="Agent not found")
+        return build_json_response({"detail": "Agent not found"}, HTTPStatus.NOT_FOUND)
 
     agent = AGENTS[agent_id]
-    api_key = get_openai_api_key(request.api_key)
-
-    messages = [{"role": "system", "content": agent["system_prompt"]}]
-
-    history = request.history or []
-    for msg in history[-10:]:
-        messages.append({"role": msg.role, "content": msg.content})
-
-    messages.append({"role": "user", "content": request.message})
+    api_key = get_openai_api_key(payload.get("api_key"))
+    user_message = payload.get("message", "")
+    history = payload.get("history") or []
 
     if not api_key:
         mock_responses = {
@@ -365,7 +314,7 @@ Feature: Fund Transfer
         
         default_response = f"""I'm the **{agent['name']}** agent.
 
-I received your message: "{request.message}"
+I received your message: "{user_message}"
 
 This is a demo response. To get real AI responses:
 1. Get an OpenAI API key from https://platform.openai.com
@@ -375,36 +324,87 @@ This is a demo response. To get real AI responses:
 How can I help you with your QA tasks today?"""
 
         response_text = mock_responses.get(agent_id, default_response)
-        return ChatResponse(response=response_text, agent_id=agent_id)
+        return build_json_response({"response": response_text, "agent_id": agent_id})
 
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
-            model=get_openai_model(),
-            messages=messages,
-            max_tokens=2000,
-            temperature=0.7
-        )
+    return build_json_response({"response": f"Live AI is currently unavailable. Please check your OpenAI key or billing status.", "agent_id": agent_id})
 
-        assistant_message = response.choices[0].message.content
 
-        return ChatResponse(response=assistant_message, agent_id=agent_id)
+class SimpleHandler:
+    def __init__(self):
+        self.allowed_origins = get_allowed_origins()
 
-    except Exception as e:
-        error_text = str(e).lower()
-        status_code = getattr(e, "status_code", None)
+    def handle(self, environ, start_response):
+        path = environ.get("PATH_INFO", "/")
+        method = environ.get("REQUEST_METHOD", "GET")
 
-        if status_code in {401, 403, 429} or "insufficient_quota" in error_text or "quota" in error_text or "api key" in error_text:
-            fallback_message = (
-                "Live AI is currently unavailable because the OpenAI account does not have usable quota or the API key is not accepted. "
-                "The app will continue in demo mode. Please check your OpenAI billing/credits or use a different API key."
-            )
-            return ChatResponse(response=fallback_message, agent_id=agent_id)
+        if method == "OPTIONS":
+            status = HTTPStatus.OK
+            headers = [
+                ("Content-Type", "application/json"),
+                ("Access-Control-Allow-Origin", "*"),
+                ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
+                ("Access-Control-Allow-Headers", "Content-Type"),
+            ]
+            start_response(f"{status.value} {status.phrase}", headers)
+            return [b""]
 
-        raise HTTPException(status_code=500, detail=str(e))
+        if path == "/":
+            payload = {"message": "QA Agent Hub API", "status": "running"}
+            return self._respond(payload, start_response)
+
+        if path == "/api/agents":
+            payload = [{"id": k, "name": v["name"]} for k, v in AGENTS.items()]
+            return self._respond(payload, start_response)
+
+        if path.startswith("/api/agents/"):
+            agent_id = path.split("/")[-1]
+            if agent_id in AGENTS:
+                payload = {"id": agent_id, **AGENTS[agent_id]}
+                return self._respond(payload, start_response)
+            return self._respond({"detail": "Agent not found"}, start_response, HTTPStatus.NOT_FOUND)
+
+        if path.startswith("/api/chat/"):
+            agent_id = path.split("/")[-1]
+            try:
+                content_length = int(environ.get("CONTENT_LENGTH", "0"))
+            except ValueError:
+                content_length = 0
+
+            body = environ["wsgi.input"].read(content_length).decode("utf-8") if content_length else "{}"
+            try:
+                payload = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                payload = {}
+
+            response_payload, status = handle_chat(agent_id, payload)
+            return self._respond(response_payload, start_response, status)
+
+        return self._respond({"detail": "Not found"}, start_response, HTTPStatus.NOT_FOUND)
+
+    def _respond(self, payload: Any, start_response, status: int = HTTPStatus.OK):
+        body = json.dumps(payload).encode("utf-8")
+        headers = [
+            ("Content-Type", "application/json"),
+            ("Content-Length", str(len(body))),
+            ("Access-Control-Allow-Origin", "*"),
+            ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
+            ("Access-Control-Allow-Headers", "Content-Type"),
+        ]
+        start_response(f"{status.value} {status.phrase}", headers)
+        return [body]
+
+
+app = SimpleHandler()
+
+
+def main():
+    from wsgiref.simple_server import make_server
+    port = int(os.getenv("PORT", "8000"))
+    host = "0.0.0.0"
+    server = make_server(host, port, app.handle)
+    print(f"Serving on http://{host}:{port}")
+    server.serve_forever()
 
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    main()
