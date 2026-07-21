@@ -1,4 +1,3 @@
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
 import json
 import os
 from http import HTTPStatus
