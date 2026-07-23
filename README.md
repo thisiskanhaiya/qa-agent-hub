@@ -1,325 +1,203 @@
-#QA Engineering Agent Hub - Requirements Document
-Project Name: Quality Engineering Dashboard
-Version: 1.0
-Date: 2026-07-20
-Domain: Banking / Financial Services
+# 🤖 QA Agent Hub
 
-1. Project Overview
-1.1 Purpose
-A web-based dashboard that provides multiple AI-powered agents to assist QA/SDET teams in their day-to-day activities. Each agent specializes in a specific task, reducing manual effort and improving consistency.
+**AI-Powered Quality Engineering Assistant for Banking & Financial Services**
 
-1.2 Vision
-"One-click access to specialized QA agents that understand banking domain and team conventions."
+[![Live Demo](https://img.shields.io/badge/demo-live-success)](https://qa-agent-hub.vercel.app)
+[![Backend](https://img.shields.io/badge/backend-render-blue)](https://qa-agent-hub.onrender.com)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-1.3 Target Users
-Role	Usage
-Junior QA	Test case writing, bug reporting, Gherkin conversion
-Senior QA / SDET	Automation scripts, API testing, performance testing
-Team Lead	Test planning, defect triage, coverage analysis, reporting
-2. Functional Requirements
-2.1 Dashboard (Home Page)
-ID	Requirement	Priority
-FR-01	Display navigation bar with logo and title "Welcome to Quality Engineering Dashboard"	High
-FR-02	Show user profile/login section in navbar	Medium
-FR-03	Display agent cards in grid layout	High
-FR-04	Each card shows: Agent name, icon, short description	High
-FR-05	Cards should be categorized by role (Junior QA, Senior QA, Team Lead)	Medium
-FR-06	Search/filter agents by name or category	Low
-2.2 Agent Chat Interface
-ID	Requirement	Priority
-FR-07	Clicking a card opens chat interface for that agent	High
-FR-08	Chat displays agent name and description at top	High
-FR-09	User can type messages in input field	High
-FR-10	Agent responds with formatted output (code blocks, tables)	High
-FR-11	Support markdown rendering in responses	High
-FR-12	Copy button for code/output sections	Medium
-FR-13	Chat history maintained during session	Medium
-FR-14	Option to clear chat and start fresh	Low
-FR-15	Back button to return to dashboard	High
-2.3 Agent Capabilities
-Junior QA Agents
-Agent Name	Capabilities
-Gherkin Converter	Convert plain text requirements to Gherkin format (Given/When/Then), Support Feature, Scenario, Background, Tags
-Test Case Writer	Generate test cases from user stories, Include positive/negative scenarios, Banking-specific validations
-Bug Reporter	Format bug reports with standard template, Suggest severity/priority, Include steps to reproduce
-Test Data Generator	Generate valid banking test data (account numbers, IBANs, transaction amounts), Support masking for sensitive data
-Senior QA / SDET Agents
-Agent Name	Capabilities
-API Test Generator	Generate REST API test scripts, Support multiple frameworks (RestAssured, Postman, pytest), Include assertions and validations
-Automation Script Builder	Generate Selenium/Playwright/Cypress scripts, Support Page Object Model, Banking workflow automation
-SQL Query Helper	Build SELECT/INSERT/UPDATE queries, Test data setup queries, Validation queries for banking tables
-Performance Test Creator	Generate JMeter/Gatling scripts, Load test scenarios for banking APIs
-Team Lead Agents
-Agent Name	Capabilities
-Sprint Test Planner	Create test plan from sprint backlog, Estimate effort, Assign tasks
-Defect Triage Assistant	Categorize bugs by module/severity, Suggest priority, Identify duplicates
-Coverage Analyzer	Map test cases to requirements, Identify gaps, Generate coverage report
-Release Readiness Checker	Go/no-go checklist, Risk assessment, Summary report
-3. Non-Functional Requirements
-3.1 Performance
-ID	Requirement
-NFR-01	Dashboard should load within 3 seconds
-NFR-02	Agent response time should be under 10 seconds
-NFR-03	Support 50 concurrent users (initial phase)
-3.2 Security
-ID	Requirement
-NFR-04	User authentication required
-NFR-05	API keys stored securely (environment variables)
-NFR-06	HTTPS for all communications
-NFR-07	No sensitive banking data stored in chat logs
-3.3 Usability
-ID	Requirement
-NFR-08	Responsive design (desktop and tablet)
-NFR-09	Intuitive UI with minimal learning curve
-NFR-10	Consistent color scheme and branding
-3.4 Availability
-ID	Requirement
-NFR-11	99% uptime for demo/POC phase
-NFR-12	Graceful error handling with user-friendly messages
-4. Technical Requirements
-4.1 Technology Stack
-Layer	Technology	Version
-Frontend Framework	Vue.js	3.x
-Build Tool	Vite	Latest
-UI Component Library	Vuetify or PrimeVue	Latest
-Backend Framework	Python FastAPI	0.100+
-LLM Integration	OpenAI API / Anthropic	Latest
-Database	SQLite (demo) / PostgreSQL (prod)	-
-Deployment - Frontend	Vercel	-
-Deployment - Backend	Render	-
-Version Control	Git + GitHub	-
-4.2 Project Structure
-qa-agent-hub/
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   │   ├── assets/
-│   │   ├── components/
-│   │   │   ├── NavBar.vue
-│   │   │   ├── AgentCard.vue
-│   │   │   ├── ChatInterface.vue
-│   │   │   └── MessageBubble.vue
-│   │   ├── views/
-│   │   │   ├── Dashboard.vue
-│   │   │   └── AgentChat.vue
-│   │   ├── router/
-│   │   ├── stores/
-│   │   ├── App.vue
-│   │   └── main.js
-│   ├── package.json
-│   └── vite.config.js
-│
-├── backend/
-│   ├── agents/
-│   │   ├── __init__.py
-│   │   ├── base_agent.py
-│   │   ├── gherkin_converter.py
-│   │   ├── test_case_writer.py
-│   │   ├── api_test_generator.py
-│   │   └── ...
-│   ├── routers/
-│   │   ├── agents.py
-│   │   └── chat.py
-│   ├── config.py
-│   ├── main.py
-│   └── requirements.txt
-│
-├── README.md
-├── .gitignore
-└── .env.example
-4.3 API Endpoints
-Method	Endpoint	Description
-GET	/api/agents	List all available agents
-GET	/api/agents/{id}	Get agent details
-POST	/api/chat/{agent_id}	Send message to agent
-GET	/api/chat/{agent_id}/history	Get chat history
-DELETE	/api/chat/{agent_id}/history	Clear chat history
-4.4 Dependencies
-Frontend (package.json)
-{
-  "dependencies": {
-    "vue": "^3.4.0",
-    "vue-router": "^4.2.0",
-    "pinia": "^2.1.0",
-    "vuetify": "^3.4.0",
-    "axios": "^1.6.0",
-    "marked": "^11.0.0"
-  }
-}
-Backend (requirements.txt)
-fastapi==0.109.0
-uvicorn==0.27.0
-openai==1.10.0
-python-dotenv==1.0.0
-pydantic==2.5.0
-5. UI/UX Specifications
-5.1 Color Scheme (Banking Theme)
-Element	Color
-Primary	#1E3A5F (Dark Blue)
-Secondary	#3498DB (Light Blue)
-Accent	#27AE60 (Green)
-Background	#F5F7FA (Light Gray)
-Card Background	#FFFFFF (White)
-Text Primary	#2C3E50 (Dark Gray)
-5.2 Wireframes
-Dashboard Layout
-┌─────────────────────────────────────────────────────────────┐
-│ [Logo]  Quality Engineering Dashboard              [Profile]│
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Welcome, [User Name]!                                      │
-│  Select an agent to get started                             │
-│                                                             │
-│  ── Junior QA ──────────────────────────────────────────    │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐           │
-│  │ Gherkin │ │TestCase │ │  Bug    │ │TestData │           │
-│  │Converter│ │ Writer  │ │Reporter │ │Generator│           │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘           │
-│                                                             │
-│  ── Senior QA / SDET ───────────────────────────────────    │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐           │
-│  │API Test │ │  Auto   │ │  SQL    │ │  Perf   │           │
-│  │Generator│ │ Builder │ │ Helper  │ │ Tester  │           │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘           │
-│                                                             │
-│  ── Team Lead ──────────────────────────────────────────    │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐           │
-│  │ Sprint  │ │ Defect  │ │Coverage │ │Release  │           │
-│  │ Planner │ │ Triage  │ │Analyzer │ │Readiness│           │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-Chat Interface Layout
-┌─────────────────────────────────────────────────────────────┐
-│ [←Back]  Gherkin Converter Agent                   [Clear]  │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ Agent: Hello! I can convert your requirements       │   │
-│  │ into Gherkin format. Paste your requirement below.  │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│        ┌─────────────────────────────────────────────────┐ │
-│        │ User: Convert this: User should be able to     │ │
-│        │ transfer funds between accounts                │ │
-│        └─────────────────────────────────────────────────┘ │
-│                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ Agent:                                              │   │
-│  │ ```gherkin                                          │   │
-│  │ Feature: Fund Transfer                              │   │
-│  │   @smoke @banking                                   │   │
-│  │   Scenario: Successful fund transfer                │   │
-│  │     Given user is logged into banking portal        │   │
-│  │     And user has sufficient balance                 │   │
-│  │     When user initiates transfer of "1000" INR      │   │
-│  │     Then transfer should be successful              │   │
-│  │ ```                                          [Copy] │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│ [Type your message...]                            [Send ➤] │
-└─────────────────────────────────────────────────────────────┘
-6. Deployment Requirements
-6.1 Environment Variables
-# Backend (.env)
-OPENAI_API_KEY=sk-xxxxxxxxxxxxx
-ENVIRONMENT=development
-CORS_ORIGINS=http://localhost:5173,https://your-app.vercel.app
+QA Agent Hub is an intelligent quality engineering platform that leverages OpenAI's GPT-4o-mini to assist QA professionals in their daily tasks. Built specifically for the banking and financial services domain, it provides 12 specialized AI agents for Junior QA, Senior QA, and Team Lead roles.
 
-# Frontend (.env)
-VITE_API_BASE_URL=http://localhost:8000
-6.2 Deployment Steps
-Step	Action
-1	Push code to GitHub repository
-2	Connect Vercel to GitHub repo (frontend folder)
-3	Connect Render to GitHub repo (backend folder)
-4	Set environment variables in both platforms
-5	Deploy and test
-6.3 URLs (After Deployment)
-Service	URL
-Frontend	https://qa-agent-hub.vercel.app
-Backend	https://qa-agent-hub-api.onrender.com
-7. Project Timeline
-Phase	Tasks	Duration
-Phase 1: Setup	Project structure, Git repo, dependencies	2 hours
-Phase 2: Frontend	Dashboard, Agent cards, Chat UI	6 hours
-Phase 3: Backend	FastAPI setup, Agent logic, LLM integration	6 hours
-Phase 4: Integration	Connect frontend-backend, testing	3 hours
-Phase 5: Deployment	Vercel + Render deployment	2 hours
-Phase 6: Polish	Bug fixes, UI improvements	3 hours
+## ✨ Features
 
-8. Optional OpenAI Key Flow and Render Deployment
-8.1 UI behavior
-- The navbar shows either "AI Connected" or "Demo Mode" based on whether a valid OpenAI key is stored.
-- Users can open the key dialog and save a key in the browser. The key is stored in local storage and used for chat requests.
-- If no key is present, the app continues to work in demo mode with built-in responses.
+- 🤖 **12 Specialized AI Agents** - Trained for specific QA tasks from junior to team lead level
+- 🏦 **Banking Domain Focus** - Specialized knowledge for financial services QA scenarios
+- ⚡ **Real-time Responses** - Instant AI-powered answers using OpenAI GPT-4o-mini
+- ☁️ **Cloud Deployed** - Backend on Render, Frontend on Vercel for 24/7 availability
+- 🔑 **Flexible API Key** - Use demo mode or bring your own OpenAI API key
+- 📱 **Responsive Design** - Beautiful Material Design UI that works on all devices
 
-8.2 Backend configuration
-- The backend reads the key from the request body first, then from the environment variable OPENAI_API_KEY.
-- Demo mode is automatic when no key is provided.
-- Configure CORS with the CORS_ORIGINS environment variable for deployed frontend domains.
+## 🎯 Agent Categories
 
-8.3 Backend deployment on Render
-1. Create a new Render Web Service and connect this repository.
-2. Set the root directory to backend.
-3. Use the build command:
-   pip install -r requirements.txt
-4. Use the start command:
-   uvicorn main:app --host 0.0.0.0 --port $PORT
-5. Add environment variables:
-   - OPENAI_API_KEY (optional)
-   - OPENAI_MODEL=gpt-4o-mini
-   - CORS_ORIGINS=https://your-frontend-domain.onrender.com
+### Junior QA (4 Agents)
+Essential QA tasks for beginners and test execution:
+- **Gherkin Converter** - Convert requirements into Gherkin format (Given/When/Then)
+- **Test Case Writer** - Generate comprehensive test cases from user stories
+- **Bug Reporter** - Format bug reports with standard template and severity
+- **Test Data Generator** - Generate valid banking test data (accounts, transactions)
 
-8.4 Frontend deployment on Render or Vercel
-1. Create a new Static Site or Vercel project and connect this repository.
-2. Set the root directory to frontend.
-3. Build command:
-   npm install && npm run build
-4. Publish directory:
-   dist
-5. Add environment variable:
-   - VITE_API_BASE_URL=https://your-backend-url.onrender.com
+### Senior QA (4 Agents)
+Advanced automation and performance testing:
+- **API Test Generator** - Generate REST API test scripts from specifications
+- **Automation Script Builder** - Generate Selenium/Playwright/Cypress scripts
+- **SQL Query Helper** - Build SQL queries for test data setup and validation
+- **Performance Test Creator** - Generate JMeter/Gatling performance test scripts
 
-8.5 Local run
-- Backend: cd backend && python main.py
-- Frontend: cd frontend && npm install && VITE_API_TARGET=http://localhost:8000 npm run dev
-Total		~22 hours
-8. Cost Estimate
-Item	Monthly Cost
-Vercel (Frontend)	Free
-Render (Backend)	Free tier
-OpenAI API	$10-20 (usage based)
-Domain (optional)	$1 (yearly ~$12)
-Total	$10-20/month
-9. Future Enhancements (Phase 2)
-Feature	Description
-User Authentication	Login/logout, role-based access
-Chat History Persistence	Save conversations to database
-Custom Agent Creation	Let users create their own agents
-Team Sharing	Share agent outputs with team members
-Integration with Jira	Import requirements from Jira tickets
-Integration with GitHub	Push generated tests to repository
-Analytics Dashboard	Track agent usage statistics
-10. Acceptance Criteria
-Criteria	Condition
-Dashboard loads	Within 3 seconds
-All agent cards visible	12 agents displayed correctly
-Agent chat works	User can send message and receive response
-Response formatting	Code blocks render properly
-Copy functionality	User can copy generated output
-Deployment	Accessible via public URL
-11. Risks and Mitigations
-Risk	Impact	Mitigation
-OpenAI API rate limits	Agent responses delayed	Implement retry logic, caching
-High API costs	Budget overrun	Set usage limits, optimize prompts
-LLM hallucinations	Incorrect outputs	Add disclaimers, review prompts
-Render cold starts	Slow first response	Use health checks, upgrade if needed
-12. Sign-Off
-Role	Name	Date	Signature
-Product Owner			
-Tech Lead			
-QA Lead			
-Document Status: Draft
-Next Steps: Review and approve, then begin development
+### Team Lead (4 Agents)
+Strategic planning and quality governance:
+- **Sprint Test Planner** - Create test plans from sprint backlog
+- **Defect Triage Assistant** - Categorize and prioritize bugs efficiently
+- **Coverage Analyzer** - Map test cases to requirements and identify gaps
+- **Release Readiness Checker** - Go/no-go decision support and release checklists
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Frontend (Vercel)                     │
+│  Vue 3 + Vuetify 3 + Pinia + Vite + Vue Router          │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       │ HTTPS/REST API
+                       │
+┌──────────────────────▼──────────────────────────────────┐
+│                   Backend (Render)                       │
+│         FastAPI + Python 3.11+ + Uvicorn                │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       │ API Calls
+                       │
+┌──────────────────────▼──────────────────────────────────┐
+│                    OpenAI API                            │
+│                  GPT-4o-mini Model                       │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **Vue 3** - Progressive JavaScript framework with Composition API
+- **Vuetify 3** - Material Design component framework
+- **Pinia** - Intuitive state management
+- **Vite** - Next generation frontend tooling
+- **Vue Router** - Official routing library
+- **Axios** - HTTP client for API requests
+
+### Backend
+- **FastAPI** - Modern, fast web framework for building APIs with Python
+- **Python 3.11+** - Latest Python version with performance improvements
+- **Uvicorn** - Lightning-fast ASGI server
+- **OpenAI** - GPT-4o-mini integration
+- **httpx** - Modern HTTP client with async support
+- **Pydantic** - Data validation using Python type annotations
+
+### Deployment
+- **Frontend**: Vercel (Automatic deployments from main branch)
+- **Backend**: Render (Web service with auto-deploy)
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+ and npm
+- Python 3.11+
+- OpenAI API key (optional - demo mode available)
+
+### Local Development
+
+#### Backend Setup
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Create .env file
+echo "OPENAI_API_KEY=your_openai_key_here" > .env
+echo "PORT=8000" >> .env
+
+# Run server
+uvicorn main:app --reload --port 8000
+```
+
+#### Frontend Setup
+```bash
+cd frontend
+npm install
+
+# Create .env files
+echo "VITE_API_BASE_URL=http://localhost:8000" > .env.development
+echo "VITE_API_BASE_URL=https://qa-agent-hub.onrender.com" > .env.production
+
+# Run development server
+npm run dev
+```
+
+Visit `http://localhost:5173` to see the app.
+
+## 🎨 Usage
+
+1. **Select an Agent** - Choose from 12 specialized AI agents
+2. **Add API Key (Optional)** - Use demo mode or add your OpenAI key for live AI responses
+3. **Start Chatting** - Ask questions and get instant QA assistance
+
+### Example Prompts
+
+**For Gherkin Converter:**
+```
+Convert this to Gherkin: User logs into banking app, views account balance, and transfers money to another account
+```
+
+**For Test Case Writer:**
+```
+Generate test cases for login functionality with valid and invalid credentials
+```
+
+**For API Test Generator:**
+```
+Create REST Assured test for GET /api/accounts endpoint that returns list of bank accounts
+```
+
+## 📊 Use Cases
+
+- **Test Documentation** - Generate test cases, Gherkin scenarios, and bug reports
+- **Test Automation** - Create automation scripts for web, API, and performance testing
+- **Test Planning** - Plan sprints, analyze coverage, and assess release readiness
+- **Database Testing** - Generate SQL queries for test data setup and validation
+
+## 🌐 Live Demo
+
+**Frontend:** [https://qa-agent-hub.vercel.app](https://qa-agent-hub.vercel.app)
+
+**Backend API:** [https://qa-agent-hub.onrender.com](https://qa-agent-hub.onrender.com)
+
+Try the demo mode without an API key, or add your OpenAI key for full AI-powered responses!
+
+## 📸 Screenshots
+
+### Dashboard
+![Dashboard](https://via.placeholder.com/800x500/667eea/ffffff?text=QA+Agent+Hub+Dashboard)
+
+### Chat Interface
+![Chat Interface](https://via.placeholder.com/800x500/764ba2/ffffff?text=Agent+Chat+Interface)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+## 🙏 Acknowledgments
+
+- OpenAI for providing the GPT-4o-mini API
+- Vue.js and Vuetify teams for excellent frameworks
+- FastAPI team for the amazing Python web framework
+
+## 📧 Contact
+
+**Project Link:** [https://github.com/thisiskanhaiya/qa-agent-hub](https://github.com/thisiskanhaiya/qa-agent-hub)
+
+**Live Demo:** [https://qa-agent-hub.vercel.app](https://qa-agent-hub.vercel.app)
+
+---
+
+⭐ Star this repo if you find it helpful!
+
+Made with ❤️ for QA Engineers
