@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import AgentChat from '../views/AgentChat.vue'
+import About from '../views/About.vue'
 
 const routes = [
   {
@@ -13,6 +14,11 @@ const routes = [
     name: 'AgentChat',
     component: AgentChat,
     props: true
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: About
   }
 ]
 

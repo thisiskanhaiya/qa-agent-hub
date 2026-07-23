@@ -25,6 +25,15 @@
       {{ agentCount }} Agents
     </v-chip>
 
+    <v-btn 
+      variant="text" 
+      @click="goToAbout"
+      class="mr-2"
+    >
+      <v-icon class="mr-1">mdi-information-outline</v-icon>
+      About
+    </v-btn>
+
     <ApiKeyDialog />
     
     <v-btn icon>
@@ -51,5 +60,9 @@ const hasApiKey = computed(() => apiKeyStore.hasApiKey)
 
 const goHome = () => {
   router.push('/')
+}
+
+const goToAbout = () => {
+  router.push('/about')
 }
 </script>
